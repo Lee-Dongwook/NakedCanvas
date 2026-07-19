@@ -1,7 +1,7 @@
 import type { NakedOptions, ParticleData } from "./types";
 
 export class NakedEffect {
-  private particles: ParticleData[] = [];
+  private readonly particles: ParticleData[] = [];
 
   constructor(
     private readonly ctx: CanvasRenderingContext2D,
@@ -20,14 +20,22 @@ export class NakedEffect {
     this.ctx.fillStyle = "#ffffff";
     this.ctx.fillText(text, width / 2, height / 2);
 
-    const imgData = this.ctx.getImageData(0, 0, width, height);
-    const data = imgData.data;
+    const data = this.ctx.getImageData(0, 0, width, height).data;
     const gap = this.options.particleGap;
+    const color = this.options.defaultColor;
 
-    for (let y = 0; y < height; y += gap) {
-      for (let x = 0; x < width; x += gap) {
-        const idx = (y * width + x) * 4;
-        const alpha = data[idx + 3];
+    const rows = Array.from(
+      { length: Math.ceil(height / gap) },
+      (_, i) => i * gap,
+    );
+    const cols = Array.from(
+      { length: Math.ceil(width / gap) },
+      (_, i) => i * gap,
+    );
+
+    for (const y of rows) {
+      for (const x of cols) {
+        const alpha = data[(y * width + x) * 4 + 3];
 
         if (alpha > 128) {
           this.particles.push({
@@ -37,7 +45,7 @@ export class NakedEffect {
             vy: 0,
             tx: x,
             ty: y,
-            color: this.options.defaultColor,
+            color,
           });
         }
       }
@@ -45,21 +53,19 @@ export class NakedEffect {
   }
 
   public updateAndRender(mouseX: number, mouseY: number): void {
-    const len = this.particles.length;
-    const { mouseRadius, pushForce, returnEase, friction } = this.options;
     const ctx = this.ctx;
+    const { mouseRadius, pushForce, returnEase, friction } = this.options;
+    const radiusSq = mouseRadius * mouseRadius;
 
-    for (let i = 0; i < len; i++) {
-      const p = this.particles[i];
-
+    // `for...of` keeps the RAF loop `let`-free and allocation-free (no `new`).
+    for (const p of this.particles) {
       const dx = mouseX - p.x;
       const dy = mouseY - p.y;
-      const distance = dx * dx + dy * dy;
-      const radiusSq = mouseRadius * mouseRadius;
+      const distanceSq = dx * dx + dy * dy;
 
-      if (distance < radiusSq) {
-        const dist = Math.sqrt(distance) || 1;
-        const force = (radiusSq - distance) / radiusSq;
+      if (distanceSq < radiusSq) {
+        const dist = Math.sqrt(distanceSq) || 1;
+        const force = (radiusSq - distanceSq) / radiusSq;
 
         p.vx -= (dx / dist) * force * pushForce;
         p.vy -= (dy / dist) * force * pushForce;

@@ -1,5 +1,7 @@
-import { NakedOptions } from "./types";
+import type { NakedOptions } from "./types";
 import { NakedEffect } from "./effect";
+
+export type { NakedOptions, ParticleData } from "./types";
 
 export class NakedCanvas {
   private readonly ctx: CanvasRenderingContext2D;
