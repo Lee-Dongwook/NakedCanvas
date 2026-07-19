@@ -10,6 +10,7 @@ export class NakedCanvas {
 
   private width: number = 0;
   private height: number = 0;
+  private dpr: number = 1;
   private mouseX: number = -9999;
   private mouseY: number = -9999;
   private isRunning: boolean = false;
@@ -27,7 +28,9 @@ export class NakedCanvas {
     private readonly canvas: HTMLCanvasElement,
     customOptions?: Partial<NakedOptions>,
   ) {
-    this.ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+    // The visible canvas stays GPU-accelerated (no willReadFrequently). Pixel
+    // readback happens only on the offscreen buffer inside NakedEffect.
+    this.ctx = canvas.getContext("2d")!;
     this.options = { ...this.defaultOptions, ...customOptions };
     this.effect = new NakedEffect(this.ctx, this.options);
 
@@ -63,19 +66,20 @@ export class NakedCanvas {
   }
 
   private resize(): void {
-    const dpr = window.devicePixelRatio || 1;
+    this.dpr = window.devicePixelRatio || 1;
     this.width = this.canvas.parentElement?.clientWidth || window.innerWidth;
     this.height = this.canvas.parentElement?.clientHeight || window.innerHeight;
 
-    this.canvas.width = this.width * dpr;
-    this.canvas.height = this.height * dpr;
+    // Setting width/height resets the transform, so scale() is not cumulative.
+    this.canvas.width = this.width * this.dpr;
+    this.canvas.height = this.height * this.dpr;
     this.canvas.style.width = `${this.width}px`;
     this.canvas.style.height = `${this.height}px`;
-    this.ctx.scale(dpr, dpr);
+    this.ctx.scale(this.dpr, this.dpr);
   }
 
   public renderText(text: string): void {
-    this.effect.convertTextToParticles(text, this.width, this.height);
+    this.effect.convertTextToParticles(text, this.width, this.height, this.dpr);
 
     if (!this.isRunning) {
       this.isRunning = true;
